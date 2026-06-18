@@ -33,7 +33,7 @@ class MaintenanceRecord(db.Model):
     machine = db.relationship('Machine', backref='maintenances')
     date = db.Column(db.DateTime, default=datetime.utcnow)
     description = db.Column(db.String(500))
-    type = db.Column(db.String(50))  # پیشگیرانه، اضطراری، دوره‌ای
+    type = db.Column(db.String(50))
     cost = db.Column(db.Float, default=0)
 
 # ============ ایجاد دیتابیس ============
@@ -46,7 +46,6 @@ with app.app_context():
         db.session.add_all([m1, m2, m3])
         db.session.commit()
         
-        # داده‌های نمونه برای تعمیرات
         for i in range(12):
             m = MaintenanceRecord(
                 machine_id=1 if i % 2 == 0 else 2,
@@ -58,7 +57,7 @@ with app.app_context():
             db.session.add(m)
         db.session.commit()
 
-# ============ HTML اصلی ============
+# ============ HTML اصلی با CDN داخلی ============
 MAIN_HTML = """
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -66,7 +65,8 @@ MAIN_HTML = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>سیستم تعمیرات</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- استفاده از CDN داخلی ایران -->
+    <script src="https://cdn.iran.liara.run/chart.js/4.4.0/chart.umd.min.js"></script>
     <style>
         * { direction: rtl; text-align: right; box-sizing: border-box; }
         body { background: #f0f2f5; font-family: Tahoma, Arial, sans-serif; margin: 0; padding-bottom: 70px; }
@@ -84,7 +84,7 @@ MAIN_HTML = """
         .row { display: flex; flex-wrap: wrap; margin: 0 -8px; }
         .col-6 { width: 50%; padding: 0 8px; box-sizing: border-box; }
         .col-12 { width: 100%; padding: 0 8px; box-sizing: border-box; }
-        .chart-container { height: 200px; width: 100%; }
+        .chart-container { height: 220px; width: 100%; position: relative; }
         .status-badge { padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; display: inline-block; }
         .status-active { background: #d4edda; color: #155724; }
         .status-maintenance { background: #fff3cd; color: #856404; }
@@ -144,14 +144,14 @@ MAIN_HTML = """
 </html>
 """
 
-# ============ کمک‌کننده برای پیام‌ها ============
+# ============ کمک‌کننده ============
 def get_messages():
     msgs = []
     for category, msg in get_flashed_messages(with_categories=True):
         msgs.append(f'<div class="alert alert-{category}">{msg}</div>')
     return ''.join(msgs)
 
-# ============ صفحه اصلی با نمودار ============
+# ============ صفحه اصلی ============
 @app.route('/')
 def index():
     machines = Machine.query.all()
@@ -160,7 +160,6 @@ def index():
     maintenance = Machine.query.filter_by(status='تعمیر').count()
     inactive = Machine.query.filter_by(status='غیرفعال').count()
     
-    # داده‌های تعمیرات ماهانه
     months = []
     counts = []
     costs = []
@@ -184,10 +183,7 @@ def index():
     counts.reverse()
     costs.reverse()
     
-    # داده‌های نمودار دایره‌ای
     pie_data = json.dumps([active, maintenance, inactive])
-    
-    # داده‌های نمودار میله‌ای
     bar_labels = json.dumps(months)
     bar_data = json.dumps(counts)
     cost_data = json.dumps(costs)
@@ -231,71 +227,77 @@ def index():
     '''
     
     script = f'''
-        // نمودار دایره‌ای
-        const ctx1 = document.getElementById('statusPieChart').getContext('2d');
-        new Chart(ctx1, {{
-            type: 'pie',
-            data: {{
-                labels: ['فعال', 'در حال تعمیر', 'غیرفعال'],
-                datasets: [{{
-                    data: {pie_data},
-                    backgroundColor: ['#28a745', '#ffc107', '#dc3545'],
-                    borderWidth: 1
-                }}]
-            }},
-            options: {{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {{
-                    legend: {{
-                        position: 'bottom',
-                        labels: {{
-                            font: {{ size: 12 }}
+        document.addEventListener('DOMContentLoaded', function() {{
+            try {{
+                const ctx1 = document.getElementById('statusPieChart').getContext('2d');
+                new Chart(ctx1, {{
+                    type: 'pie',
+                    data: {{
+                        labels: ['فعال', 'در حال تعمیر', 'غیرفعال'],
+                        datasets: [{{
+                            data: {pie_data},
+                            backgroundColor: ['#28a745', '#ffc107', '#dc3545'],
+                            borderWidth: 1
+                        }}]
+                    }},
+                    options: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {{
+                            legend: {{
+                                position: 'bottom',
+                                labels: {{ font: {{ size: 12 }} }}
+                            }}
                         }}
                     }}
-                }}
+                }});
+            }} catch(e) {{
+                console.log('Chart error:', e);
             }}
-        }});
-        
-        // نمودار میله‌ای
-        const ctx2 = document.getElementById('monthlyBarChart').getContext('2d');
-        new Chart(ctx2, {{
-            type: 'bar',
-            data: {{
-                labels: {bar_labels},
-                datasets: [
-                    {{
-                        label: 'تعداد تعمیرات',
-                        data: {bar_data},
-                        backgroundColor: '#667eea',
-                        borderRadius: 4
+            
+            try {{
+                const ctx2 = document.getElementById('monthlyBarChart').getContext('2d');
+                new Chart(ctx2, {{
+                    type: 'bar',
+                    data: {{
+                        labels: {bar_labels},
+                        datasets: [
+                            {{
+                                label: 'تعداد تعمیرات',
+                                data: {bar_data},
+                                backgroundColor: '#667eea',
+                                borderRadius: 4
+                            }},
+                            {{
+                                label: 'هزینه (تومان)',
+                                data: {cost_data},
+                                backgroundColor: '#f093fb',
+                                borderRadius: 4,
+                                yAxisID: 'y1'
+                            }}
+                        ]
                     }},
-                    {{
-                        label: 'هزینه (تومان)',
-                        data: {cost_data},
-                        backgroundColor: '#f093fb',
-                        borderRadius: 4,
-                        yAxisID: 'y1'
+                    options: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {{
+                            legend: {{
+                                position: 'bottom',
+                                labels: {{ font: {{ size: 10 }} }}
+                            }}
+                        }},
+                        scales: {{
+                            y: {{ beginAtZero: true }},
+                            y1: {{
+                                position: 'left',
+                                beginAtZero: true,
+                                grid: {{ drawOnChartArea: false }}
+                            }}
+                        }}
                     }}
-                ]
-            }},
-            options: {{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {{
-                    legend: {{
-                        position: 'bottom',
-                        labels: {{ font: {{ size: 10 }} }}
-                    }}
-                }},
-                scales: {{
-                    y: {{ beginAtZero: true }},
-                    y1: {{
-                        position: 'left',
-                        beginAtZero: true,
-                        grid: {{ drawOnChartArea: false }}
-                    }}
-                }}
+                }});
+            }} catch(e) {{
+                console.log('Chart error:', e);
             }}
         }});
     '''
