@@ -34,7 +34,7 @@ with app.app_context():
         db.session.add_all([m1, m2, m3])
         db.session.commit()
 
-# ============ HTML اصلی ============
+# ============ HTML اصلی (با CSS اصلاح شده) ============
 MAIN_HTML = """
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -43,7 +43,7 @@ MAIN_HTML = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>سیستم تعمیرات</title>
     <style>
-        * { direction: rtl; text-align: right; box-sizing: border-box; }
+        * { box-sizing: border-box; }
         body { background: #f0f2f5; font-family: Tahoma, Arial, sans-serif; margin: 0; padding-bottom: 70px; }
         .navbar { background: #0d1b2a; color: white; padding: 15px 20px; }
         .navbar-brand { color: white; font-weight: bold; font-size: 1.5rem; text-decoration: none; }
@@ -65,7 +65,6 @@ MAIN_HTML = """
         .mobile-menu { background: #0d1b2a; padding: 10px; position: fixed; bottom: 0; left: 0; right: 0; z-index: 999; display: flex; justify-content: space-around; }
         .mobile-menu a { color: #a0b4c8; text-decoration: none; font-size: 12px; text-align: center; padding: 5px 0; }
         .mobile-menu a.active { color: white; }
-        .mobile-menu i { font-size: 22px; display: block; }
         .btn { display: inline-block; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; text-decoration: none; font-size: 14px; }
         .btn-primary { background: #0d1b2a; color: white; }
         .btn-success { background: #28a745; color: white; width: 100%; }
@@ -90,6 +89,7 @@ MAIN_HTML = """
         .w-100 { width: 100%; }
         .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; background: #6c757d; color: white; }
         .bg-secondary { background: #6c757d; }
+        .text-center { text-align: center; }
     </style>
 </head>
 <body>
