@@ -34,8 +34,9 @@ with app.app_context():
         db.session.add_all([m1, m2, m3])
         db.session.commit()
 
-# ============ قالب‌ها (به صورت متغیر) ============
-BASE_TEMPLATE = '''
+# ============ قالب‌های HTML ============
+# قالب اصلی (بدون extends)
+BASE_HTML = '''
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -92,93 +93,71 @@ BASE_TEMPLATE = '''
 </html>
 '''
 
-DASHBOARD = '''
-{% extends "BASE_TEMPLATE" %}
-{% block content %}
-<div class="row">
-    <div class="col-6"><div class="stat-card"><div class="stat-number">{{ total }}</div><div class="stat-label">تعداد دستگاه‌ها</div></div></div>
-    <div class="col-6"><div class="stat-card stat-green"><div class="stat-number">{{ active }}</div><div class="stat-label">فعال</div></div></div>
-    <div class="col-6"><div class="stat-card stat-orange"><div class="stat-number">{{ maintenance }}</div><div class="stat-label">در حال تعمیر</div></div></div>
-    <div class="col-6"><div class="stat-card stat-red"><div class="stat-number">{{ inactive }}</div><div class="stat-label">غیرفعال</div></div></div>
-</div>
-<div class="card">
-    <div class="card-header">📋 لیست دستگاه‌ها</div>
-    <div class="card-body p-0">
-        <table class="table table-hover mb-0">
-            <thead class="table-light"><tr><th>نام</th><th>وضعیت</th></tr></thead>
-            <tbody>{% for m in machines %}<tr><td>{{ m.name }}</td><td><span class="status-badge status-{{ 'active' if m.status=='فعال' else 'maintenance' if m.status=='تعمیر' else 'inactive' }}">{{ m.status }}</span></td></tr>{% endfor %}</tbody>
-        </table>
-    </div>
-</div>
-{% endblock %}
-'''
-
-MACHINES_LIST = '''
-{% extends "BASE_TEMPLATE" %}
-{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h5>🏭 دستگاه‌ها</h5>
-    <a href="/add-machine" class="btn btn-primary btn-sm">➕ جدید</a>
-</div>
-{% for m in machines %}
-<div class="card">
-    <div class="card-body">
-        <h6>{{ m.name }}</h6>
-        <span class="badge bg-secondary">{{ m.code }}</span>
-        <span class="status-badge status-{{ 'active' if m.status=='فعال' else 'maintenance' if m.status=='تعمیر' else 'inactive' }}">{{ m.status }}</span>
-        <p class="small mt-2 mb-0">📍 {{ m.location }}</p>
-        <p class="small">📅 سرویس بعدی: {{ m.next_service or '-' }}</p>
-        <a href="/delete-machine/{{ m.id }}" class="btn btn-danger btn-sm" onclick="return confirm('حذف شود؟')">🗑️ حذف</a>
-    </div>
-</div>
-{% endfor %}
-{% endblock %}
-'''
-
-ADD_MACHINE = '''
-{% extends "BASE_TEMPLATE" %}
-{% block content %}
-<div class="card">
-    <div class="card-header bg-primary text-white">➕ دستگاه جدید</div>
-    <div class="card-body">
-        <form method="POST">
-            <div class="mb-2"><label class="form-label">کد دستگاه</label><input type="text" name="code" class="form-control" required placeholder="M-001"></div>
-            <div class="mb-2"><label class="form-label">نام دستگاه</label><input type="text" name="name" class="form-control" required></div>
-            <div class="mb-2"><label class="form-label">مدل</label><input type="text" name="model" class="form-control"></div>
-            <div class="mb-2"><label class="form-label">برند</label><input type="text" name="brand" class="form-control"></div>
-            <div class="mb-2"><label class="form-label">مکان</label><input type="text" name="location" class="form-control" required></div>
-            <div class="mb-2"><label class="form-label">وضعیت</label>
-                <select name="status" class="form-select">
-                    <option value="فعال">فعال</option>
-                    <option value="تعمیر">در حال تعمیر</option>
-                    <option value="غیرفعال">غیرفعال</option>
-                </select>
-            </div>
-            <div class="mb-2"><label class="form-label">سرویس بعدی</label><input type="text" name="next_service" class="form-control" placeholder="۱۴۰۳-۰۴-۲۵"></div>
-            <button type="submit" class="btn btn-success w-100">ثبت دستگاه</button>
-        </form>
-    </div>
-</div>
-{% endblock %}
-'''
-
 # ============ روت‌ها ============
 @app.route('/')
 def index():
     machines = Machine.query.all()
-    return render_template_string(DASHBOARD, 
-        machines=machines,
-        total=len(machines),
-        active=Machine.query.filter_by(status='فعال').count(),
-        maintenance=Machine.query.filter_by(status='تعمیر').count(),
-        inactive=Machine.query.filter_by(status='غیرفعال').count()
-    )
+    total = len(machines)
+    active = Machine.query.filter_by(status='فعال').count()
+    maintenance = Machine.query.filter_by(status='تعمیر').count()
+    inactive = Machine.query.filter_by(status='غیرفعال').count()
+    
+    # ساختن محتوای داشبورد
+    dashboard_content = f'''
+    <div class="row">
+        <div class="col-6"><div class="stat-card"><div class="stat-number">{total}</div><div class="stat-label">تعداد دستگاه‌ها</div></div></div>
+        <div class="col-6"><div class="stat-card stat-green"><div class="stat-number">{active}</div><div class="stat-label">فعال</div></div></div>
+        <div class="col-6"><div class="stat-card stat-orange"><div class="stat-number">{maintenance}</div><div class="stat-label">در حال تعمیر</div></div></div>
+        <div class="col-6"><div class="stat-card stat-red"><div class="stat-number">{inactive}</div><div class="stat-label">غیرفعال</div></div></div>
+    </div>
+    <div class="card">
+        <div class="card-header">📋 لیست دستگاه‌ها</div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light"><tr><th>نام</th><th>وضعیت</th></tr></thead>
+                <tbody>
+    '''
+    for m in machines:
+        status_class = 'active' if m.status == 'فعال' else 'maintenance' if m.status == 'تعمیر' else 'inactive'
+        dashboard_content += f'<tr><td>{m.name}</td><td><span class="status-badge status-{status_class}">{m.status}</span></td></tr>'
+    dashboard_content += '''
+                </tbody>
+            </table>
+        </div>
+    </div>
+    '''
+    
+    # جایگزین کردن block content
+    final_html = BASE_HTML.replace('{% block content %}{% endblock %}', dashboard_content)
+    return render_template_string(final_html)
 
 @app.route('/machines')
 def machines():
-    return render_template_string(MACHINES_LIST, 
-        machines=Machine.query.all()
-    )
+    machines = Machine.query.all()
+    
+    machines_content = '''
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5>🏭 دستگاه‌ها</h5>
+        <a href="/add-machine" class="btn btn-primary btn-sm">➕ جدید</a>
+    </div>
+    '''
+    for m in machines:
+        status_class = 'active' if m.status == 'فعال' else 'maintenance' if m.status == 'تعمیر' else 'inactive'
+        machines_content += f'''
+        <div class="card">
+            <div class="card-body">
+                <h6>{m.name}</h6>
+                <span class="badge bg-secondary">{m.code}</span>
+                <span class="status-badge status-{status_class}">{m.status}</span>
+                <p class="small mt-2 mb-0">📍 {m.location}</p>
+                <p class="small">📅 سرویس بعدی: {m.next_service or '-'}</p>
+                <a href="/delete-machine/{m.id}" class="btn btn-danger btn-sm" onclick="return confirm('حذف شود؟')">🗑️ حذف</a>
+            </div>
+        </div>
+        '''
+    
+    final_html = BASE_HTML.replace('{% block content %}{% endblock %}', machines_content)
+    return render_template_string(final_html)
 
 @app.route('/add-machine', methods=['GET', 'POST'])
 def add_machine():
@@ -196,7 +175,33 @@ def add_machine():
         db.session.commit()
         flash('دستگاه اضافه شد!', 'success')
         return redirect(url_for('machines'))
-    return render_template_string(ADD_MACHINE)
+    
+    form_html = '''
+    <div class="card">
+        <div class="card-header bg-primary text-white">➕ دستگاه جدید</div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="mb-2"><label class="form-label">کد دستگاه</label><input type="text" name="code" class="form-control" required placeholder="M-001"></div>
+                <div class="mb-2"><label class="form-label">نام دستگاه</label><input type="text" name="name" class="form-control" required></div>
+                <div class="mb-2"><label class="form-label">مدل</label><input type="text" name="model" class="form-control"></div>
+                <div class="mb-2"><label class="form-label">برند</label><input type="text" name="brand" class="form-control"></div>
+                <div class="mb-2"><label class="form-label">مکان</label><input type="text" name="location" class="form-control" required></div>
+                <div class="mb-2"><label class="form-label">وضعیت</label>
+                    <select name="status" class="form-select">
+                        <option value="فعال">فعال</option>
+                        <option value="تعمیر">در حال تعمیر</option>
+                        <option value="غیرفعال">غیرفعال</option>
+                    </select>
+                </div>
+                <div class="mb-2"><label class="form-label">سرویس بعدی</label><input type="text" name="next_service" class="form-control" placeholder="۱۴۰۳-۰۴-۲۵"></div>
+                <button type="submit" class="btn btn-success w-100">ثبت دستگاه</button>
+            </form>
+        </div>
+    </div>
+    '''
+    
+    final_html = BASE_HTML.replace('{% block content %}{% endblock %}', form_html)
+    return render_template_string(final_html)
 
 @app.route('/delete-machine/<int:id>')
 def delete_machine(id):
