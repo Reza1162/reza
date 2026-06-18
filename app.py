@@ -43,19 +43,8 @@ with app.app_context():
         m3 = Machine(code='M-003', name='پمپ آب', model='P-100', brand='پنتاکس', location='تهران', status='تعمیر', next_service='۱۴۰۳-۰۵-۲۰')
         db.session.add_all([m1, m2, m3])
         db.session.commit()
-        
-        for i in range(6):
-            m = MaintenanceRecord(
-                machine_id=1 if i % 2 == 0 else 2,
-                date=datetime.utcnow() - timedelta(days=i*30),
-                description=f'تعمیر دوره‌ای {i+1}',
-                type='دوره‌ای' if i % 3 == 0 else 'پیشگیرانه' if i % 3 == 1 else 'اضطراری',
-                cost=100000 + (i * 50000)
-            )
-            db.session.add(m)
-        db.session.commit()
 
-# ============ HTML اصلی (کاملاً داخلی) ============
+# ============ HTML اصلی ============
 MAIN_HTML = """
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -64,65 +53,65 @@ MAIN_HTML = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>سیستم تعمیرات</title>
     <style>
-        * { direction: rtl; text-align: right; box-sizing: border-box; }
-        body { background: #f0f2f5; font-family: Tahoma, Arial, sans-serif; margin: 0; padding-bottom: 70px; }
-        .navbar { background: #0d1b2a; color: white; padding: 15px 20px; }
-        .navbar-brand { color: white; font-weight: bold; font-size: 1.5rem; text-decoration: none; }
-        .container { max-width: 1000px; margin: 0 auto; padding: 15px; }
-        .card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 15px; margin-bottom: 15px; }
-        .card-header { font-weight: 600; font-size: 1.1rem; padding-bottom: 10px; border-bottom: 1px solid #e9ecef; margin-bottom: 10px; }
-        .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 20px; color: white; margin-bottom: 15px; text-align: center; }
-        .stat-card .stat-number { font-size: 2.5rem; font-weight: 700; }
-        .stat-card .stat-label { font-size: 0.9rem; opacity: 0.9; }
-        .stat-card.stat-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-        .stat-card.stat-orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-        .stat-card.stat-red { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
-        .row { display: flex; flex-wrap: wrap; margin: 0 -8px; }
-        .col-6 { width: 50%; padding: 0 8px; box-sizing: border-box; }
-        .col-12 { width: 100%; padding: 0 8px; box-sizing: border-box; }
-        .chart-container { height: 200px; display: flex; align-items: flex-end; justify-content: center; gap: 8px; padding: 10px 0; }
-        .bar { display: flex; flex-direction: column; align-items: center; width: 40px; }
-        .bar-fill { width: 30px; border-radius: 4px 4px 0 0; transition: height 0.5s; min-height: 10px; }
-        .bar-label { font-size: 10px; color: #666; margin-top: 4px; }
-        .bar-value { font-size: 11px; font-weight: bold; margin-bottom: 2px; }
-        .pie-chart { display: flex; justify-content: center; gap: 20px; padding: 10px 0; }
-        .pie-item { display: flex; flex-direction: column; align-items: center; }
-        .pie-circle { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; color: white; }
-        .pie-label { font-size: 12px; margin-top: 4px; color: #555; }
-        .pie-percent { font-size: 14px; font-weight: bold; }
-        .status-badge { padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; display: inline-block; }
-        .status-active { background: #d4edda; color: #155724; }
-        .status-maintenance { background: #fff3cd; color: #856404; }
-        .status-inactive { background: #f8d7da; color: #721c24; }
-        .mobile-menu { background: #0d1b2a; padding: 10px; position: fixed; bottom: 0; left: 0; right: 0; z-index: 999; display: flex; justify-content: space-around; }
-        .mobile-menu a { color: #a0b4c8; text-decoration: none; font-size: 12px; text-align: center; padding: 5px 0; }
-        .mobile-menu a.active { color: white; }
-        .btn { display: inline-block; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; text-decoration: none; font-size: 14px; }
-        .btn-primary { background: #0d1b2a; color: white; }
-        .btn-success { background: #28a745; color: white; width: 100%; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn-sm { padding: 4px 12px; font-size: 12px; }
-        .form-control { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; margin: 5px 0; }
-        .form-label { display: block; margin-bottom: 4px; font-weight: 500; }
-        .form-select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: white; }
-        .table { width: 100%; border-collapse: collapse; }
-        .table th, .table td { padding: 10px; text-align: right; border-bottom: 1px solid #e9ecef; }
-        .table th { background: #f8f9fa; font-weight: 600; }
-        .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; }
-        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .text-muted { color: #6c757d; }
-        .mb-2 { margin-bottom: 10px; }
-        .mb-3 { margin-bottom: 15px; }
-        .d-flex { display: flex; }
-        .justify-content-between { justify-content: space-between; }
-        .align-items-center { align-items: center; }
-        .w-100 { width: 100%; }
-        .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; background: #6c757d; color: white; }
-        .bg-secondary { background: #6c757d; }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .text-center { text-align: center; }
-        @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } .col-6 { width: 100%; } }
+        * {{ direction: rtl; text-align: right; box-sizing: border-box; }}
+        body {{ background: #f0f2f5; font-family: Tahoma, Arial, sans-serif; margin: 0; padding-bottom: 70px; }}
+        .navbar {{ background: #0d1b2a; color: white; padding: 15px 20px; }}
+        .navbar-brand {{ color: white; font-weight: bold; font-size: 1.5rem; text-decoration: none; }}
+        .container {{ max-width: 1000px; margin: 0 auto; padding: 15px; }}
+        .card {{ background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 15px; margin-bottom: 15px; }}
+        .card-header {{ font-weight: 600; font-size: 1.1rem; padding-bottom: 10px; border-bottom: 1px solid #e9ecef; margin-bottom: 10px; }}
+        .stat-card {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 20px; color: white; margin-bottom: 15px; text-align: center; }}
+        .stat-card .stat-number {{ font-size: 2.5rem; font-weight: 700; }}
+        .stat-card .stat-label {{ font-size: 0.9rem; opacity: 0.9; }}
+        .stat-card.stat-green {{ background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }}
+        .stat-card.stat-orange {{ background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }}
+        .stat-card.stat-red {{ background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }}
+        .row {{ display: flex; flex-wrap: wrap; margin: 0 -8px; }}
+        .col-6 {{ width: 50%; padding: 0 8px; box-sizing: border-box; }}
+        .col-12 {{ width: 100%; padding: 0 8px; box-sizing: border-box; }}
+        .chart-container {{ height: 200px; display: flex; align-items: flex-end; justify-content: center; gap: 8px; padding: 10px 0; }}
+        .bar {{ display: flex; flex-direction: column; align-items: center; width: 40px; }}
+        .bar-fill {{ width: 30px; border-radius: 4px 4px 0 0; transition: height 0.5s; min-height: 10px; }}
+        .bar-label {{ font-size: 10px; color: #666; margin-top: 4px; }}
+        .bar-value {{ font-size: 11px; font-weight: bold; margin-bottom: 2px; }}
+        .pie-chart {{ display: flex; justify-content: center; gap: 20px; padding: 10px 0; }}
+        .pie-item {{ display: flex; flex-direction: column; align-items: center; }}
+        .pie-circle {{ width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; color: white; }}
+        .pie-label {{ font-size: 12px; margin-top: 4px; color: #555; }}
+        .pie-percent {{ font-size: 14px; font-weight: bold; }}
+        .status-badge {{ padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; display: inline-block; }}
+        .status-active {{ background: #d4edda; color: #155724; }}
+        .status-maintenance {{ background: #fff3cd; color: #856404; }}
+        .status-inactive {{ background: #f8d7da; color: #721c24; }}
+        .mobile-menu {{ background: #0d1b2a; padding: 10px; position: fixed; bottom: 0; left: 0; right: 0; z-index: 999; display: flex; justify-content: space-around; }}
+        .mobile-menu a {{ color: #a0b4c8; text-decoration: none; font-size: 12px; text-align: center; padding: 5px 0; }}
+        .mobile-menu a.active {{ color: white; }}
+        .btn {{ display: inline-block; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; text-decoration: none; font-size: 14px; }}
+        .btn-primary {{ background: #0d1b2a; color: white; }}
+        .btn-success {{ background: #28a745; color: white; width: 100%; }}
+        .btn-danger {{ background: #dc3545; color: white; }}
+        .btn-sm {{ padding: 4px 12px; font-size: 12px; }}
+        .form-control {{ width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; margin: 5px 0; }}
+        .form-label {{ display: block; margin-bottom: 4px; font-weight: 500; }}
+        .form-select {{ width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: white; }}
+        .table {{ width: 100%; border-collapse: collapse; }}
+        .table th, .table td {{ padding: 10px; text-align: right; border-bottom: 1px solid #e9ecef; }}
+        .table th {{ background: #f8f9fa; font-weight: 600; }}
+        .alert {{ padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; }}
+        .alert-success {{ background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }}
+        .alert-danger {{ background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }}
+        .text-muted {{ color: #6c757d; }}
+        .mb-2 {{ margin-bottom: 10px; }}
+        .mb-3 {{ margin-bottom: 15px; }}
+        .d-flex {{ display: flex; }}
+        .justify-content-between {{ justify-content: space-between; }}
+        .align-items-center {{ align-items: center; }}
+        .w-100 {{ width: 100%; }}
+        .badge {{ display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; background: #6c757d; color: white; }}
+        .bg-secondary {{ background: #6c757d; }}
+        .grid-2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }}
+        .text-center {{ text-align: center; }}
+        @media (max-width: 600px) {{ .grid-2 {{ grid-template-columns: 1fr; }} .col-6 {{ width: 100%; }} }}
     </style>
 </head>
 <body>
@@ -145,13 +134,6 @@ MAIN_HTML = """
 </html>
 """
 
-# ============ کمک‌کننده ============
-def get_messages():
-    msgs = []
-    for category, msg in get_flashed_messages(with_categories=True):
-        msgs.append(f'<div class="alert alert-{category}">{msg}</div>')
-    return ''.join(msgs)
-
 # ============ صفحه اصلی ============
 @app.route('/')
 def index():
@@ -161,13 +143,11 @@ def index():
     maintenance = Machine.query.filter_by(status='تعمیر').count()
     inactive = Machine.query.filter_by(status='غیرفعال').count()
     
-    # محاسبه درصدها
     total_percent = total or 1
     active_percent = round((active / total_percent) * 100)
     maintenance_percent = round((maintenance / total_percent) * 100)
     inactive_percent = round((inactive / total_percent) * 100)
     
-    # داده‌های تعمیرات ماهانه
     months = []
     counts = []
     now = datetime.utcnow()
@@ -184,7 +164,6 @@ def index():
     counts.reverse()
     max_count = max(counts) if counts else 1
     
-    # ساخت نمودار میله‌ای با CSS
     bars_html = ''
     colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe']
     for i, (month, count) in enumerate(zip(months, counts)):
