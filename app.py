@@ -7,8 +7,7 @@ import tempfile
 app = Flask(__name__)
 app.secret_key = 'my-secret-key-12345'
 
-# ============ استفاده از دیتابیس موقت در Render ============
-# این کار باعث میشه دیتابیس توی مسیری که دسترسی داره ساخته بشه
+# ============ دیتابیس ============
 db_path = os.path.join(tempfile.gettempdir(), 'industrial.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -25,7 +24,7 @@ class Machine(db.Model):
     status = db.Column(db.String(50), default='فعال')
     next_service = db.Column(db.String(50))
 
-# ============ ایجاد دیتابیس و داده‌های اولیه ============
+# ============ ایجاد دیتابیس ============
 with app.app_context():
     db.create_all()
     if not Machine.query.first():
@@ -35,7 +34,7 @@ with app.app_context():
         db.session.add_all([m1, m2, m3])
         db.session.commit()
 
-# ============ HTML قالب‌ها ============
+# ============ قالب‌ها (به صورت متغیر) ============
 BASE_TEMPLATE = '''
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -94,7 +93,7 @@ BASE_TEMPLATE = '''
 '''
 
 DASHBOARD = '''
-{% extends base_template %}
+{% extends "BASE_TEMPLATE" %}
 {% block content %}
 <div class="row">
     <div class="col-6"><div class="stat-card"><div class="stat-number">{{ total }}</div><div class="stat-label">تعداد دستگاه‌ها</div></div></div>
@@ -115,7 +114,7 @@ DASHBOARD = '''
 '''
 
 MACHINES_LIST = '''
-{% extends base_template %}
+{% extends "BASE_TEMPLATE" %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h5>🏭 دستگاه‌ها</h5>
@@ -137,7 +136,7 @@ MACHINES_LIST = '''
 '''
 
 ADD_MACHINE = '''
-{% extends base_template %}
+{% extends "BASE_TEMPLATE" %}
 {% block content %}
 <div class="card">
     <div class="card-header bg-primary text-white">➕ دستگاه جدید</div>
@@ -168,7 +167,6 @@ ADD_MACHINE = '''
 def index():
     machines = Machine.query.all()
     return render_template_string(DASHBOARD, 
-        base_template=BASE_TEMPLATE,
         machines=machines,
         total=len(machines),
         active=Machine.query.filter_by(status='فعال').count(),
@@ -179,7 +177,6 @@ def index():
 @app.route('/machines')
 def machines():
     return render_template_string(MACHINES_LIST, 
-        base_template=BASE_TEMPLATE,
         machines=Machine.query.all()
     )
 
@@ -199,7 +196,7 @@ def add_machine():
         db.session.commit()
         flash('دستگاه اضافه شد!', 'success')
         return redirect(url_for('machines'))
-    return render_template_string(ADD_MACHINE, base_template=BASE_TEMPLATE)
+    return render_template_string(ADD_MACHINE)
 
 @app.route('/delete-machine/<int:id>')
 def delete_machine(id):
