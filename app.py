@@ -1,13 +1,20 @@
 from flask import Flask, render_template_string, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+import os
+import tempfile
 
 app = Flask(__name__)
 app.secret_key = 'my-secret-key-12345'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///industrial.db'
+
+# ============ استفاده از دیتابیس موقت در Render ============
+# این کار باعث میشه دیتابیس توی مسیری که دسترسی داره ساخته بشه
+db_path = os.path.join(tempfile.gettempdir(), 'industrial.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+# ============ مدل دستگاه ============
 class Machine(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(50), unique=True)
@@ -18,6 +25,7 @@ class Machine(db.Model):
     status = db.Column(db.String(50), default='فعال')
     next_service = db.Column(db.String(50))
 
+# ============ ایجاد دیتابیس و داده‌های اولیه ============
 with app.app_context():
     db.create_all()
     if not Machine.query.first():
@@ -27,6 +35,7 @@ with app.app_context():
         db.session.add_all([m1, m2, m3])
         db.session.commit()
 
+# ============ HTML قالب‌ها ============
 BASE_TEMPLATE = '''
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -154,6 +163,7 @@ ADD_MACHINE = '''
 {% endblock %}
 '''
 
+# ============ روت‌ها ============
 @app.route('/')
 def index():
     machines = Machine.query.all()
